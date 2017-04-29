@@ -26,7 +26,7 @@ public class GameManager : MonoBehaviour
 		if (instance == null)
 			instance = this;
 		else if (instance != this)
-			Destroy(gameObject);
+			Destroy(this.gameObject);
 		
 		//Sets this to not be destroyed when reloading scene
 		DontDestroyOnLoad(gameObject);

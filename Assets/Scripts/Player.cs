@@ -13,6 +13,15 @@ public class Player : MovingObject
 
 	private Animator animator;                  //Used to store a reference to the Player's animator component.
 	private int food;                           //Used to store player food points total during level.
+	public AudioClip moveSound1;
+	public AudioClip moveSound2;
+	public AudioClip eatSound1;
+	public AudioClip eatSound2;
+	public AudioClip drinkSound1;
+	public AudioClip drinkSound2;
+	public AudioClip gameOverSound;
+
+	private Vector2 touchOrigin = -Vector2.one;
 
 	//Start overrides the Start function of MovingObject
 	protected override void Start ()
@@ -30,17 +39,14 @@ public class Player : MovingObject
 
 	private void Update ()
 	{
-		//If it's not the player's turn, exit the function.
-		if(!GameManager.instance.playersTurn) return;
+		if(!GameManager.instance.playersTurn)
+			return;
 
 		int horizontal = 0;     //Used to store the horizontal move direction.
 		int vertical = 0;       //Used to store the vertical move direction.
 
-
-		//Get input from the input manager, round it to an integer and store in horizontal to set x axis move direction
+#if UNITY_STANDALONE
 		horizontal = (int) (Input.GetAxisRaw ("Horizontal"));
-
-		//Get input from the input manager, round it to an integer and store in vertical to set y axis move direction
 		vertical = (int) (Input.GetAxisRaw ("Vertical"));
 
 		//Check if moving horizontally, if so set vertical to zero.
@@ -48,6 +54,29 @@ public class Player : MovingObject
 		{
 			vertical = 0;
 		}
+#else
+		if (Input.touchCount > 0)
+		{
+			Touch myTouch = Input.touches[0];
+			if (myTouch.phase == TouchPhase.Began)
+			{
+				touchOrigin = myTouch.position;
+			}
+			else if (myTouch.phase == TouchPhase.Ended && touchOrigin.x >= 0)
+			{
+				Vector2 touchEnd = myTouch.position;
+				float x = touchEnd.x - touchOrigin.x;
+				float y = touchEnd.y - touchOrigin.y;
+				touchOrigin.x = -1;
+				touchOrigin.y = -1;
+				if (Mathf.Abs(x) > Mathf.Abs(y))
+					horizontal = x > 0 ? 1 : -1;
+				else
+					vertical = y > 0 ? 1 : -1;
+				
+			}
+		}
+#endif
 
 		//Check if we have a non-zero value for horizontal or vertical
 		if(horizontal != 0 || vertical != 0)
@@ -69,13 +98,12 @@ public class Player : MovingObject
 		//Call the AttemptMove method of the base class, passing in the component T (in this case Wall) and x and y direction to move.
 		base.AttemptMove <T> (xDir, yDir);
 
-		//Hit allows us to reference the result of the Linecast done in Move.
 		RaycastHit2D hit;
 
-		//If Move returns true, meaning Player was able to move into an empty space.
 		if (Move (xDir, yDir, out hit)) 
 		{
-			//Call RandomizeSfx of SoundManager to play the move sound, passing in two audio clips to choose from.
+			SoundManager.instance.RandomizeSfx (moveSound1, moveSound2);
+			
 		}
 
 		//Since the player has moved and lost food points, check if the game has ended.
@@ -106,12 +134,14 @@ public class Player : MovingObject
 		{
 			food += pointsPerFood;
 			foodText.text = "+" + pointsPerFood + " Food: " + food;
+			SoundManager.instance.RandomizeSfx (eatSound1, eatSound2);
 			other.gameObject.SetActive (false);
 		}
 		else if(other.tag == "Soda")
 		{
 			food += pointsPerSoda;
 			foodText.text = "+" + pointsPerSoda + " Food: " + food;
+			SoundManager.instance.RandomizeSfx (drinkSound1, drinkSound2);
 			other.gameObject.SetActive (false);
 		}
 	}
@@ -133,6 +163,8 @@ public class Player : MovingObject
 	{
 		if (food <= 0) 
 		{
+			SoundManager.instance.musicSource.Stop ();
+			SoundManager.instance.PlaySingle (gameOverSound);
 			GameManager.instance.GameOver ();
 		}
 	}
